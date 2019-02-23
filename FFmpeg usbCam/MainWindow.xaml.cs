@@ -75,10 +75,10 @@ namespace FFmpeg_usbCam
                 {
                     var frame = vsd.TryDecodeNextFrame();
                     var convertedFrame = vsd.Convert(frame);
-                    
+
                     Bitmap bitmap = new Bitmap(convertedFrame.width, convertedFrame.height, convertedFrame.linesize[0], System.Drawing.Imaging.PixelFormat.Format24bppRgb, (IntPtr)convertedFrame.data[0]);
                     BitmapToImageSource(bitmap);
-                    
+
                     vsd.TryEncodeNextPacket(&frame);
 
                 }

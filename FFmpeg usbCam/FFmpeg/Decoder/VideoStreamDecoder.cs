@@ -18,7 +18,7 @@ namespace FFmpeg_usbCam.FFmpeg.Decoder
         AVPacket* packet;
 
         int _streamIndex;
-        
+
         IntPtr _convertedFrameBufferPtr;
         Size _destinationSize;
         byte_ptrArray4 _dstData;
@@ -112,13 +112,13 @@ namespace FFmpeg_usbCam.FFmpeg.Decoder
 
                     _oCodecContext = ffmpeg.avcodec_alloc_context3(encoder);
                     _oCodecContext = out_stream->codec;
-                    
+
                     _oCodecContext->height = _pCodecContext->height;
                     _oCodecContext->width = _pCodecContext->width;
                     _oCodecContext->sample_aspect_ratio = _pCodecContext->sample_aspect_ratio;
                     _oCodecContext->pix_fmt = encoder->pix_fmts[0];
-                    //_oCodecContext->time_base = ffmpeg.av_inv_q(_pCodecContext->framerate);
                     _oCodecContext->time_base = _pCodecContext->time_base;
+                    _oCodecContext->framerate = ffmpeg.av_inv_q(_pCodecContext->framerate);
 
                     if ((oFormatContext->oformat->flags & ffmpeg.AVFMT_GLOBALHEADER) != 0)
                     {
@@ -131,8 +131,6 @@ namespace FFmpeg_usbCam.FFmpeg.Decoder
                     ret = ffmpeg.avcodec_parameters_from_context(out_stream->codecpar, _oCodecContext);
                     out_stream->time_base = _oCodecContext->time_base;
                 }
-
-
             }
 
             //Show some Information
@@ -207,7 +205,7 @@ namespace FFmpeg_usbCam.FFmpeg.Decoder
 
             ret = ffmpeg.avcodec_send_frame(_oCodecContext, uncompressed_frame);
             ret.ThrowExceptionIfError();
-            
+
             while (true)
             {
                 ret = ffmpeg.avcodec_receive_packet(_oCodecContext, encoded_packet);
