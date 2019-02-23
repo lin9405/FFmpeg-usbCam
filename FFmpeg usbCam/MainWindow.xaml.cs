@@ -56,34 +56,34 @@ namespace FFmpeg_usbCam
             string url = "rtsp://184.72.239.149/vod/mp4:BigBuckBunny_115k.mov";
             string outputFileName = "test.mp4";
 
-            using (var vsd = new VideoStreamDecoder())
+            using (var streamManager = new VideoStreamManager())
             {
-                vsd.OpenInputURL(url);
-                vsd.OpenOutputURL(outputFileName);
+                streamManager.OpenInputURL(url);
+                streamManager.OpenOutputURL(outputFileName);
 
-                var info = vsd.GetContextInfo();
+                var info = streamManager.GetContextInfo();
                 info.ToList().ForEach(x => Console.WriteLine($"{x.Key} = {x.Value}"));
 
-                var sourceSize = vsd.FrameSize;
-                var sourcePixelFormat = vsd.PixelFormat;
+                var sourceSize = streamManager.FrameSize;
+                var sourcePixelFormat = streamManager.PixelFormat;
                 var destinationSize = sourceSize;
                 var destinationPixelFormat = AVPixelFormat.AV_PIX_FMT_BGR24;
 
-                vsd.VideoFrameConverter(sourceSize, sourcePixelFormat, destinationSize, destinationPixelFormat);
+                streamManager.VideoFrameConverter(sourceSize, sourcePixelFormat, destinationSize, destinationPixelFormat);
                 
                 while (activeThread)
                 {
-                    var frame = vsd.TryDecodeNextFrame();
-                    var convertedFrame = vsd.Convert(frame);
+                    var frame = streamManager.TryDecodeNextFrame();
+                    var convertedFrame = streamManager.Convert(frame);
 
                     Bitmap bitmap = new Bitmap(convertedFrame.width, convertedFrame.height, convertedFrame.linesize[0], System.Drawing.Imaging.PixelFormat.Format24bppRgb, (IntPtr)convertedFrame.data[0]);
                     BitmapToImageSource(bitmap);
 
-                    vsd.TryEncodeNextPacket(&frame);
+                    streamManager.TryEncodeNextPacket(&frame);
 
                 }
 
-                vsd.FlushEncode();
+                streamManager.FlushEncode();
             }
         }
 

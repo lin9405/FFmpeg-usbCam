@@ -72,7 +72,7 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="FFmpeg\Decoder\VideoStreamDecoder.cs" />
+    <Compile Include="FFmpeg\VideoStreamManager.cs" />
     <Compile Include="FFmpeg\FFmpegBinariesHelper.cs" />
     <Compile Include="FFmpeg\FFmpegHelper.cs" />
     <Compile Include="MainWindow.xaml.cs">

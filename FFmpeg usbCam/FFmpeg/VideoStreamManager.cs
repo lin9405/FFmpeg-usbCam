@@ -6,7 +6,7 @@ using System.Windows;
 
 namespace FFmpeg_usbCam.FFmpeg.Decoder
 {
-    public sealed unsafe class VideoStreamDecoder : IDisposable
+    public sealed unsafe class VideoStreamManager : IDisposable
     {
         AVCodecContext* _pCodecContext;
         AVCodecContext* _oCodecContext;
@@ -17,7 +17,8 @@ namespace FFmpeg_usbCam.FFmpeg.Decoder
         AVFrame* _pFrame;
         AVPacket* packet;
 
-        int _streamIndex;
+        int dec_stream_index;
+        int enc_stream_index;
 
         IntPtr _convertedFrameBufferPtr;
         Size _destinationSize;
@@ -30,7 +31,7 @@ namespace FFmpeg_usbCam.FFmpeg.Decoder
         public AVPixelFormat PixelFormat { get; set; }
 
 
-        public VideoStreamDecoder()
+        public VideoStreamManager()
         {
             ffmpeg.avdevice_register_all();
         }
@@ -65,7 +66,7 @@ namespace FFmpeg_usbCam.FFmpeg.Decoder
 
             if (pStream == null) throw new InvalidOperationException("Could not found video stream.");
 
-            _streamIndex = pStream->index;
+            dec_stream_index = pStream->index;
             _pCodecContext = pStream->codec;
 
             var codecId = _pCodecContext->codec_id;
@@ -147,9 +148,7 @@ namespace FFmpeg_usbCam.FFmpeg.Decoder
 
             _oFormatContext = oFormatContext;
         }
-
-        int stream_index;
-
+        
         public AVFrame TryDecodeNextFrame()
         {
             ffmpeg.av_frame_unref(_pFrame);
@@ -171,11 +170,9 @@ namespace FFmpeg_usbCam.FFmpeg.Decoder
                         ret.ThrowExceptionIfError();
 
 
-                    } while (packet->stream_index != _streamIndex);
-
-                    stream_index = packet->stream_index;
-
-                    ffmpeg.av_packet_rescale_ts(packet, _pFormatContext->streams[_streamIndex]->time_base, _pCodecContext->time_base);
+                    } while (packet->stream_index != dec_stream_index);
+                    
+                    ffmpeg.av_packet_rescale_ts(packet, _pFormatContext->streams[dec_stream_index]->time_base, _pCodecContext->time_base);
 
                     /* Send the video frame stored in the temporary packet to the decoder.
                      * The input video stream decoder is used to do this. */
@@ -210,7 +207,7 @@ namespace FFmpeg_usbCam.FFmpeg.Decoder
             {
                 ret = ffmpeg.avcodec_receive_packet(_oCodecContext, encoded_packet);
 
-                stream_index = encoded_packet->stream_index;
+                enc_stream_index = encoded_packet->stream_index;
 
                 if (ret == ffmpeg.AVERROR(ffmpeg.EAGAIN) || ret == ffmpeg.AVERROR(ffmpeg.AVERROR_EOF))
                 {
@@ -223,9 +220,9 @@ namespace FFmpeg_usbCam.FFmpeg.Decoder
                 }
 
                 if (encoded_packet->pts != ffmpeg.AV_NOPTS_VALUE)
-                    encoded_packet->pts = (long)(ffmpeg.av_rescale_q(encoded_packet->pts, _oCodecContext->time_base, _oFormatContext->streams[stream_index]->time_base));
+                    encoded_packet->pts = (long)(ffmpeg.av_rescale_q(encoded_packet->pts, _oCodecContext->time_base, _oFormatContext->streams[enc_stream_index]->time_base));
                 if (encoded_packet->dts != ffmpeg.AV_NOPTS_VALUE)
-                    encoded_packet->dts = ffmpeg.av_rescale_q(encoded_packet->dts, _oCodecContext->time_base, _oFormatContext->streams[stream_index]->time_base);
+                    encoded_packet->dts = ffmpeg.av_rescale_q(encoded_packet->dts, _oCodecContext->time_base, _oFormatContext->streams[enc_stream_index]->time_base);
 
                 ffmpeg.av_write_frame(_oFormatContext, encoded_packet);
             }
