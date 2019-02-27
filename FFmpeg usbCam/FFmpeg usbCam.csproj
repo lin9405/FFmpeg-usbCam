@@ -74,7 +74,6 @@
     </Compile>
     <Compile Include="FFmpeg\GenericVideoStreamManager.cs" />
     <Compile Include="FFmpeg\H264VideoStreamEncoder.cs" />
-    <Compile Include="FFmpeg\MediaDecoder.cs" />
     <Compile Include="FFmpeg\VideoFrameConverter.cs" />
     <Compile Include="FFmpeg\VideoStreamDecoder.cs" />
     <Compile Include="FFmpeg\FFmpegBinariesHelper.cs" />

@@ -75,6 +75,7 @@ namespace FFmpeg_usbCam.FFmpeg
             
             //Write file trailer
             ffmpeg.av_write_trailer(_oFormatContext);
+
             ffmpeg.avformat_close_input(&_oFormatContext);
         }
 
@@ -86,15 +87,19 @@ namespace FFmpeg_usbCam.FFmpeg
             encoded_packet = ffmpeg.av_packet_alloc();
             ffmpeg.av_init_packet(encoded_packet);
 
+            //Supply a raw video frame to the output condec context
             ret = ffmpeg.avcodec_send_frame(oCodecContext, &uncompressed_frame);
             ret.ThrowExceptionIfError();
 
             while (true)
             {
+                //read encodeded packet from output codec context
                 ret = ffmpeg.avcodec_receive_packet(oCodecContext, encoded_packet);
 
-                enc_stream_index = encoded_packet->stream_index;
-
+                /* if no more frames for output - returns AVERROR(EAGAIN)
+                * if flushed and no more frames for output - returns AVERROR_EOF
+                * rewrite retcode to 0 to show it as normal procedure completion
+                */
                 if (ret == ffmpeg.AVERROR(ffmpeg.EAGAIN) || ret == ffmpeg.AVERROR(ffmpeg.AVERROR_EOF))
                 {
                     break;
@@ -105,11 +110,15 @@ namespace FFmpeg_usbCam.FFmpeg
                     break;
                 }
 
+                enc_stream_index = encoded_packet->stream_index;
+
+                //set packet pts & dts for timestamp
                 if (encoded_packet->pts != ffmpeg.AV_NOPTS_VALUE)
                     encoded_packet->pts = (long)(ffmpeg.av_rescale_q(encoded_packet->pts, oCodecContext->time_base, oFormatContext->streams[enc_stream_index]->time_base));
                 if (encoded_packet->dts != ffmpeg.AV_NOPTS_VALUE)
                     encoded_packet->dts = ffmpeg.av_rescale_q(encoded_packet->dts, oCodecContext->time_base, oFormatContext->streams[enc_stream_index]->time_base);
 
+                //write frame in video file
                 ffmpeg.av_write_frame(oFormatContext, encoded_packet);
             }
         }

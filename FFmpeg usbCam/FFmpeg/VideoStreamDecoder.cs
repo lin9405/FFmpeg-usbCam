@@ -17,9 +17,11 @@ namespace FFmpeg_usbCam.FFmpeg
             var _iFormatContext = iFormatContext;
 
             //webcam
-            AVInputFormat* iformat = ffmpeg.av_find_input_format("dshow");
-            ffmpeg.avformat_open_input(&_iFormatContext, url, iformat, null).ThrowExceptionIfError();
-            //ffmpeg.avformat_open_input(&_iFormatContext, url, null, null).ThrowExceptionIfError();
+            //AVInputFormat* iformat = ffmpeg.av_find_input_format("dshow");
+            //ffmpeg.avformat_open_input(&_iFormatContext, url, iformat, null).ThrowExceptionIfError();
+
+            //rtsp video streaming
+            ffmpeg.avformat_open_input(&_iFormatContext, url, null, null).ThrowExceptionIfError();
 
             ffmpeg.avformat_find_stream_info(_iFormatContext, null).ThrowExceptionIfError();
 
@@ -102,11 +104,13 @@ namespace FFmpeg_usbCam.FFmpeg
                     ffmpeg.av_packet_unref(rawPacket);
                 }
 
+                //read decoded frame from input codec context
                 ret = ffmpeg.avcodec_receive_frame(iCodecContext, decodedFrame);
             } while (ret == ffmpeg.AVERROR(ffmpeg.EAGAIN));
 
             ret.ThrowExceptionIfError();
             frame = *decodedFrame;
+
             return true;
         }
 

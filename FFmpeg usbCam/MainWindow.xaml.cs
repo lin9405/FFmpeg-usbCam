@@ -9,9 +9,7 @@ using FFmpeg.AutoGen;
 using System.Drawing;
 using System.IO;
 using FFmpeg_usbCam.FFmpeg;
-using System.Windows.Interop;
 using System.Drawing.Imaging;
-using System.Collections.Generic;
 using System.Collections.Concurrent;
 
 namespace FFmpeg_usbCam
@@ -21,26 +19,28 @@ namespace FFmpeg_usbCam
     /// </summary>
     public partial class MainWindow : Window
     {
-        Thread thread;
-        ThreadStart ts;
         Dispatcher dispatcher = Application.Current.Dispatcher;
 
-        ConcurrentQueue<Bitmap> decodedFrameQueue = new ConcurrentQueue<Bitmap>();
-        AutoResetEvent decodedFrameSignal = new AutoResetEvent(true);
-        Bitmap queueImage;
-
-        string outputFileName = "out.h264";
-        System.Drawing.Size sourceSize;
-        AVPixelFormat sourcePixelFormat;
-        System.Drawing.Size destinationSize;
-        AVPixelFormat destinationPixelFormat;
+        Thread decodingThread;
+        Thread encodingThread;
+        ThreadStart decodingThreadStart;
+        ThreadStart encodingThreadStart;
         
-        private bool activeThread;      //thread 활성화 유무
+        ConcurrentQueue<AVFrame> decodedFrameQueue = new ConcurrentQueue<AVFrame>();
+        AVFrame queueFrame;
+        
+        System.Drawing.Size sourceSize;
+        System.Drawing.Size destinationSize;
+
+        bool activeThread;      
+        bool activeEncodingThread;
+
+        int frameNumber = 0;
 
         public MainWindow()
         {
             InitializeComponent();
-            
+
             //FFmpeg dll 파일 참조 경로 설정
             FFmpegBinariesHelper.RegisterFFmpegBinaries();
 
@@ -49,131 +49,95 @@ namespace FFmpeg_usbCam
             Console.WriteLine($"FFmpeg version info: {ffmpeg.av_version_info()}");
 
             SetupLogging();
-            
-            // Start send queue worker
-            ThreadPool.QueueUserWorkItem(
-                new WaitCallback(EncodeImagesToH264));
-            
-            //비디오 프레임 디코딩 thread 생성
-            ts = new ThreadStart(DecodeAllFramesToImages);
-            thread = new Thread(ts);
 
-            activeThread = true;
+            //비디오 프레임 디코딩 thread 생성
+            decodingThreadStart = new ThreadStart(DecodeAllFramesToImages);
+            decodingThread = new Thread(decodingThreadStart);
+
+            //비디오 프레임 인코딩 thread 생성
+            encodingThreadStart = new ThreadStart(EncodeImagesToH264);
+            encodingThread = new Thread(encodingThreadStart);
         }
 
         private void Play_Button_Click(object sender, RoutedEventArgs e)
         {
             //thread 시작 
-            if (thread.ThreadState == ThreadState.Unstarted)
+            if (decodingThread.ThreadState == ThreadState.Unstarted)
             {
-                thread.Start();
+                activeThread = true;
+                decodingThread.Start();
             }
         }
-
-        long pts;
-        int frameNumber = 0;
+        
+        
         private unsafe void DecodeAllFramesToImages()
         {
             //video="웹캠 디바이스 이름"
-            string url = "video=AVerMedia GC550 Video Capture";
-            //string url = "rtsp://184.72.239.149/vod/mp4:BigBuckBunny_115k.mov";
-            
+            //string url = "video=AVerMedia GC550 Video Capture";
+
+            //sample rtsp source
+            string url = "rtsp://184.72.239.149/vod/mp4:BigBuckBunny_115k.mov";
+
             using (var vsd = new VideoStreamDecoder(url))
             {
-                using (var vse = new H264VideoStreamEncoder())
+                //start video recode
+                activeEncodingThread = true;
+                encodingThread.Start();
+
+                var info = vsd.GetContextInfo();
+                info.ToList().ForEach(x => Console.WriteLine($"{x.Key} = {x.Value}"));
+
+                sourceSize = vsd.FrameSize;
+                destinationSize = sourceSize;
+                var sourcePixelFormat = vsd.PixelFormat;
+                var destinationPixelFormat = AVPixelFormat.AV_PIX_FMT_BGR24;
+
+                using (var vfc = new VideoFrameConverter(sourceSize, sourcePixelFormat, destinationSize, destinationPixelFormat))
                 {
-                    vse.OpenOutputURL("test.mp4");
-
-                    var info = vsd.GetContextInfo();
-                    info.ToList().ForEach(x => Console.WriteLine($"{x.Key} = {x.Value}"));
-
-                    sourceSize = vsd.FrameSize;
-                    sourcePixelFormat = vsd.PixelFormat;
-                    destinationSize = sourceSize;
-                    destinationPixelFormat = AVPixelFormat.AV_PIX_FMT_BGR24;
-
-                    using (var vfc = new VideoFrameConverter(sourceSize, sourcePixelFormat, destinationSize, destinationPixelFormat))
+                    while (vsd.TryDecodeNextFrame(out var frame) && activeThread)
                     {
-                        while (vsd.TryDecodeNextFrame(out var frame) && activeThread)
-                        {
-                            pts = frame.pts;
+                        var convertedFrame = vfc.Convert(frame);
 
-                            var convertedFrame = vfc.Convert(frame);
+                        Bitmap bitmap = new Bitmap(convertedFrame.width, convertedFrame.height, convertedFrame.linesize[0], System.Drawing.Imaging.PixelFormat.Format24bppRgb, (IntPtr)convertedFrame.data[0]);
+                        
+                        decodedFrameQueue.Enqueue(convertedFrame);
 
-                            Bitmap bitmap = new Bitmap(convertedFrame.width, convertedFrame.height, convertedFrame.linesize[0], System.Drawing.Imaging.PixelFormat.Format24bppRgb, (IntPtr)convertedFrame.data[0]);
-                            
-
-                            var enc_sourcePixelFormat = AVPixelFormat.AV_PIX_FMT_BGR24;
-                            var enc_destinationPixelFormat = AVPixelFormat.AV_PIX_FMT_YUV420P;
-
-                            using (var vfc2 = new VideoFrameConverter(sourceSize, enc_sourcePixelFormat, destinationSize, enc_destinationPixelFormat))
-                            {
-                                var enc_convertedFrame = vfc2.Convert(frame);
-                                enc_convertedFrame.pts = frameNumber++;
-
-                                vse.TryEncodeNextPacket(enc_convertedFrame);
-                            }
-
-                            BitmapToImageSource(bitmap);
-                        }
+                        //display video image
+                        BitmapToImageSource(bitmap);
                     }
-
-                    vse.FlushEncode();
-                } 
+                }
             }
         }
 
-        
-        private unsafe void EncodeImagesToH264(object state)
+        private unsafe void EncodeImagesToH264()
         {
-            while (activeThread)
+            using (var vse = new H264VideoStreamEncoder())
             {
-                if (decodedFrameQueue.TryDequeue(out queueImage))
-                {
-                    var sourcePixelFormat = AVPixelFormat.AV_PIX_FMT_BGR24;
-                    destinationSize = sourceSize;
-                    var destinationPixelFormat = AVPixelFormat.AV_PIX_FMT_YUV420P;
+                //initialize output format&codec
+                vse.OpenOutputURL("test.mp4");
 
-                    using (var vfc = new VideoFrameConverter(sourceSize, sourcePixelFormat, destinationSize, destinationPixelFormat))
+                while (activeEncodingThread)
+                {
+                    if (decodedFrameQueue.TryDequeue(out queueFrame))
                     {
-                        using (var fs = File.Open(outputFileName, FileMode.Create)) // be advise only ffmpeg based player (like ffplay or vlc) can play this file, for the others you need to go through muxing
+                        var sourcePixelFormat = AVPixelFormat.AV_PIX_FMT_BGR24;
+                        var destinationPixelFormat = AVPixelFormat.AV_PIX_FMT_YUV420P; //for h.264
+
+                        using (var vfc = new VideoFrameConverter(sourceSize, sourcePixelFormat, destinationSize, destinationPixelFormat))
                         {
-                            using (var vse = new H264VideoStreamEncoder())
-                            {
-                                byte[] bitmapData;
-
-                                bitmapData = GetBitmapData(queueImage);
-
-                                fixed (byte* pBitmapData = bitmapData)
-                                {
-                                    var data = new byte_ptrArray8 { [0] = pBitmapData };
-                                    var linesize = new int_array8 { [0] = bitmapData.Length / sourceSize.Height };
-                                    var frame = new AVFrame
-                                    {
-                                        data = data,
-                                        linesize = linesize,
-                                        height = sourceSize.Height
-                                    };
-
-                                    var convertedFrame = vfc.Convert(frame);
-                                    convertedFrame.pts = frameNumber * 25;
-                                    vse.TryEncodeNextPacket(convertedFrame);
-                                }
-
-                                Console.WriteLine($"frame: {frameNumber}");
-                                frameNumber++;
-                            }
+                            var convertedFrame = vfc.Convert(queueFrame);
+                            convertedFrame.pts = frameNumber * 2;       //to do
+                            vse.TryEncodeNextPacket(convertedFrame);
                         }
+
+                        frameNumber++;
                     }
-                    
-                    decodedFrameSignal.WaitOne();
                 }
-                else
-                {
-                    // Queue is empty, sleep until signalled
-                    decodedFrameSignal.WaitOne();
-                }
+
+                //flush the encoder
+                vse.FlushEncode();
             }
+
         }
         
         void BitmapToImageSource(Bitmap bitmap)
@@ -185,7 +149,7 @@ namespace FFmpeg_usbCam
             //UI thread에 접근하기 위해 dispatcher 사용
             dispatcher.BeginInvoke((Action)(() =>
             {
-                if (thread.IsAlive)
+                if (decodingThread.IsAlive)
                 {
                     using (MemoryStream memory = new MemoryStream())
                     {
@@ -247,10 +211,16 @@ namespace FFmpeg_usbCam
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            if (thread.IsAlive)
+            if (decodingThread.IsAlive)
             {
                 activeThread = false;
-                thread.Join();
+                decodingThread.Join();
+            }
+
+            if (encodingThread.IsAlive)
+            {
+                activeEncodingThread = false;
+                encodingThread.Join();
             }
         }
     }
