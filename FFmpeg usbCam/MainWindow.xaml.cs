@@ -25,7 +25,9 @@ namespace FFmpeg_usbCam
         Thread encodingThread;
         ThreadStart decodingThreadStart;
         ThreadStart encodingThreadStart;
-        
+
+        ManualResetEvent pauseEvent = new ManualResetEvent(false);
+
         ConcurrentQueue<AVFrame> decodedFrameQueue = new ConcurrentQueue<AVFrame>();
         AVFrame queueFrame;
         
@@ -80,10 +82,6 @@ namespace FFmpeg_usbCam
 
             using (var vsd = new VideoStreamDecoder(url))
             {
-                //start video recode
-                activeEncodingThread = true;
-                encodingThread.Start();
-
                 var info = vsd.GetContextInfo();
                 info.ToList().ForEach(x => Console.WriteLine($"{x.Key} = {x.Value}"));
 
@@ -99,8 +97,11 @@ namespace FFmpeg_usbCam
                         var convertedFrame = vfc.Convert(frame);
 
                         Bitmap bitmap = new Bitmap(convertedFrame.width, convertedFrame.height, convertedFrame.linesize[0], System.Drawing.Imaging.PixelFormat.Format24bppRgb, (IntPtr)convertedFrame.data[0]);
-                        
-                        decodedFrameQueue.Enqueue(convertedFrame);
+
+                        if (activeEncodingThread)
+                        {
+                            decodedFrameQueue.Enqueue(convertedFrame);
+                        }
 
                         //display video image
                         BitmapToImageSource(bitmap);
@@ -111,31 +112,22 @@ namespace FFmpeg_usbCam
 
         private unsafe void EncodeImagesToH264()
         {
-            using (var vse = new H264VideoStreamEncoder())
+            while (pauseEvent.WaitOne())
             {
-                //initialize output format&codec
-                vse.OpenOutputURL("test.mp4");
-
-                while (activeEncodingThread)
+                if (decodedFrameQueue.TryDequeue(out queueFrame))
                 {
-                    if (decodedFrameQueue.TryDequeue(out queueFrame))
+                    var sourcePixelFormat = AVPixelFormat.AV_PIX_FMT_BGR24;
+                    var destinationPixelFormat = AVPixelFormat.AV_PIX_FMT_YUV420P; //for h.264
+
+                    using (var vfc = new VideoFrameConverter(sourceSize, sourcePixelFormat, destinationSize, destinationPixelFormat))
                     {
-                        var sourcePixelFormat = AVPixelFormat.AV_PIX_FMT_BGR24;
-                        var destinationPixelFormat = AVPixelFormat.AV_PIX_FMT_YUV420P; //for h.264
-
-                        using (var vfc = new VideoFrameConverter(sourceSize, sourcePixelFormat, destinationSize, destinationPixelFormat))
-                        {
-                            var convertedFrame = vfc.Convert(queueFrame);
-                            convertedFrame.pts = frameNumber * 2;       //to do
-                            vse.TryEncodeNextPacket(convertedFrame);
-                        }
-
-                        frameNumber++;
+                        var convertedFrame = vfc.Convert(queueFrame);
+                        convertedFrame.pts = frameNumber * 2;       //to do
+                        h264Encoder.TryEncodeNextPacket(convertedFrame);
                     }
-                }
 
-                //flush the encoder
-                vse.FlushEncode();
+                    frameNumber++;
+                }
             }
 
         }
@@ -164,27 +156,10 @@ namespace FFmpeg_usbCam
                         image.Source = bitmapimage;     //image 컨트롤에 웹캠 이미지 표시
 
                         memory.Dispose();
-                        GC.Collect();
                     }
                 }
 
             }));
-        }
-
-        private byte[] GetBitmapData(Bitmap frameBitmap)
-        {
-            var bitmapData = frameBitmap.LockBits(new Rectangle(System.Drawing.Point.Empty, frameBitmap.Size), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
-            try
-            {
-                var length = bitmapData.Stride * bitmapData.Height;
-                var data = new byte[length];
-                Marshal.Copy(bitmapData.Scan0, data, 0, length);
-                return data;
-            }
-            finally
-            {
-                frameBitmap.UnlockBits(bitmapData);
-            }
         }
 
         private unsafe void SetupLogging()
@@ -219,9 +194,53 @@ namespace FFmpeg_usbCam
 
             if (encodingThread.IsAlive)
             {
-                activeEncodingThread = false;
-                encodingThread.Join();
+                if (activeEncodingThread)
+                {
+                    h264Encoder.FlushEncode();
+                    h264Encoder.Dispose();
+
+                    pauseEvent.Reset();
+                    activeEncodingThread = false;
+                }
+
+                encodingThread.Abort();
+                pauseEvent.Dispose();
             }
+        }
+
+        H264VideoStreamEncoder h264Encoder;
+        bool isFirstRecord = true;
+
+        private void Record_Button_Checked(object sender, RoutedEventArgs e)
+        {
+            h264Encoder = new H264VideoStreamEncoder();
+
+            string videoName = DateTime.Now.ToString("yyyy_MM_dd_hh_mm_ss") + ".mp4";
+
+            //initialize output format&codec
+            h264Encoder.OpenOutputURL(videoName);
+
+            //start video recode
+            activeEncodingThread = true;
+
+            if (isFirstRecord)
+            {
+                encodingThread.Start();
+                isFirstRecord = false;
+            }
+
+            pauseEvent.Set();
+        }
+
+        private void Record_Button_Unchecked(object sender, RoutedEventArgs e)
+        {
+            activeEncodingThread = false;
+            pauseEvent.Reset();
+
+            h264Encoder.FlushEncode();
+            h264Encoder.Dispose();
+
+            frameNumber = 0;
         }
     }
 }
