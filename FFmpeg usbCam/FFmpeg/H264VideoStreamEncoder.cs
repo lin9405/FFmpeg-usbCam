@@ -65,6 +65,8 @@ namespace FFmpeg_usbCam.FFmpeg
             //Write File Header
             int error = ffmpeg.avformat_write_header(_oFormatContext, null);
             error.ThrowExceptionIfError();
+
+            oFormatContext = _oFormatContext;
         }
 
         public override void Dispose()
@@ -125,6 +127,7 @@ namespace FFmpeg_usbCam.FFmpeg
         {
             ffmpeg.avcodec_send_frame(oCodecContext, null);
         }
+
 
     }
 }
