@@ -72,7 +72,7 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="FFmpeg\GenericVideoStreamManager.cs" />
+    <Compile Include="FFmpeg\EncodingCodecInfo.cs" />
     <Compile Include="FFmpeg\H264VideoStreamEncoder.cs" />
     <Compile Include="FFmpeg\VideoFrameConverter.cs" />
     <Compile Include="FFmpeg\VideoStreamDecoder.cs" />

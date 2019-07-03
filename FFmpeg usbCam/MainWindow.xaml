@@ -14,7 +14,7 @@
             VerticalAlignment="Top" Width="75" Height="50" 
             Click="Play_Button_Click"/>
         <ToggleButton 
-            x:Name="Record_Button" IsEnabled="False"
+            x:Name="Record_Button" 
             Content="녹화" HorizontalAlignment="Left" Margin="10,10,0,0" 
             VerticalAlignment="Top" Height="50" Width="76" 
             Checked="Record_Button_Checked" Unchecked="Record_Button_Unchecked"/>
@@ -25,7 +25,7 @@
         <TextBox 
             x:Name="URL_TextBox"
             HorizontalAlignment="Right" Height="40" Margin="0,20,90,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="320"
-            Text="rtsp://192.168.0.6:8554/test" VerticalContentAlignment="Center"/>
+            Text="rtsp://184.72.239.149/vod/mp4:BigBuckBunny_115k.mov" VerticalContentAlignment="Center"/>
         <Label Content="URL" HorizontalAlignment="Left" Margin="845,29,0,0" VerticalAlignment="Top" Height="25"/>
     </Grid>
 </Window>

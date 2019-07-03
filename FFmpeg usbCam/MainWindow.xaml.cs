@@ -27,6 +27,8 @@ namespace FFmpeg_usbCam
     {
         Dispatcher dispatcher = Application.Current.Dispatcher;
 
+        EncodingInfo enCodecInfo = new EncodingInfo();
+
         Thread decodingThread;
         Thread encodingThread;
         ThreadStart decodingThreadStart;
@@ -95,6 +97,8 @@ namespace FFmpeg_usbCam
             using (var vsd = new VideoStreamDecoder(url, type))
             {
                 var info = vsd.GetContextInfo();
+                enCodecInfo = vsd.GetCodecInfo();
+
                 info.ToList().ForEach(x => Console.WriteLine($"{x.Key} = {x.Value}"));
 
                 sourceSize = vsd.FrameSize;
@@ -142,7 +146,6 @@ namespace FFmpeg_usbCam
                     frameNumber++;
                 }
             }
-
         }
         
         void BitmapToImageSource(Bitmap bitmap)
@@ -231,7 +234,7 @@ namespace FFmpeg_usbCam
             string videoName = DateTime.Now.ToString("yyyy_MM_dd_hh_mm_ss") + ".mp4";
 
             //initialize output format&codec
-            h264Encoder.OpenOutputURL(videoName);
+            h264Encoder.OpenOutputURL(videoName, enCodecInfo);
 
             //start video recode
             activeEncodingThread = true;

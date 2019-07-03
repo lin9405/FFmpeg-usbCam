@@ -6,8 +6,15 @@ using System.Runtime.InteropServices;
 
 namespace FFmpeg_usbCam.FFmpeg
 {
-    public unsafe class VideoStreamDecoder : GenericVideoStreamManager
+    public unsafe class VideoStreamDecoder : IDisposable
     {
+        AVCodecContext* iCodecContext;
+        AVFormatContext* iFormatContext;
+        
+        AVFrame* decodedFrame;
+        AVPacket* rawPacket;
+
+        int dec_stream_index;
         public VideoStreamDecoder(string url, int type)
         {
             ffmpeg.avdevice_register_all();
@@ -64,7 +71,7 @@ namespace FFmpeg_usbCam.FFmpeg
         public Size FrameSize { get; }
         public AVPixelFormat PixelFormat { get; }
 
-        public override void Dispose()
+        public void Dispose()
         {
             ffmpeg.av_frame_unref(decodedFrame);
             ffmpeg.av_free(decodedFrame);
@@ -131,6 +138,19 @@ namespace FFmpeg_usbCam.FFmpeg
             }
 
             return result;
+        }
+
+        public EncodingInfo GetCodecInfo()
+        {
+            EncodingInfo icodecInfo = new EncodingInfo();
+
+            icodecInfo.Width = iCodecContext->width;
+            icodecInfo.Height = iCodecContext->height;
+            icodecInfo.Sample_aspect_ratio = iCodecContext->sample_aspect_ratio;
+            icodecInfo.Timebase = iCodecContext->time_base;
+            icodecInfo.Framerate = iCodecContext->framerate;
+
+            return icodecInfo;
         }
     }
 }

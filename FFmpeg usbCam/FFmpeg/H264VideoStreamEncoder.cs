@@ -5,55 +5,49 @@ using System.IO;
 
 namespace FFmpeg_usbCam.FFmpeg
 {
-    public unsafe class H264VideoStreamEncoder : GenericVideoStreamManager
+    public unsafe class H264VideoStreamEncoder : IDisposable
     {
-        public void OpenOutputURL(string fileName)
+        int enc_stream_index;
+        AVFormatContext* oFormatContext;
+        AVCodecContext* oCodecContext;
+        
+        public void OpenOutputURL(string fileName, EncodingInfo enCodecInfo)
         {
             AVStream* out_stream;
-            AVStream* in_stream;
             AVCodec* encoder;
 
             int ret;
 
             //output file
             var _oFormatContext = oFormatContext;
-            
+
             ffmpeg.avformat_alloc_output_context2(&_oFormatContext, null, null, fileName);
 
-            for (int i = 0; i < iFormatContext->nb_streams; i++)
+            encoder = ffmpeg.avcodec_find_encoder(AVCodecID.AV_CODEC_ID_H264);
+
+            out_stream = ffmpeg.avformat_new_stream(_oFormatContext, encoder);
+
+            oCodecContext = ffmpeg.avcodec_alloc_context3(encoder);
+            oCodecContext = out_stream->codec;
+
+            oCodecContext->height = enCodecInfo.Height;
+            oCodecContext->width = enCodecInfo.Width;
+            oCodecContext->sample_aspect_ratio = enCodecInfo.Sample_aspect_ratio;
+            oCodecContext->pix_fmt = encoder->pix_fmts[0];
+            oCodecContext->time_base = enCodecInfo.Timebase;
+            oCodecContext->framerate = ffmpeg.av_inv_q(enCodecInfo.Framerate);
+
+            if ((_oFormatContext->oformat->flags & ffmpeg.AVFMT_GLOBALHEADER) != 0)
             {
-                in_stream = iFormatContext->streams[i];
-                iCodecContext = in_stream->codec;
-
-                if (iCodecContext->codec_type == AVMediaType.AVMEDIA_TYPE_VIDEO)
-                {
-                    encoder = ffmpeg.avcodec_find_encoder(AVCodecID.AV_CODEC_ID_H264);
-
-                    out_stream = ffmpeg.avformat_new_stream(_oFormatContext, encoder);
-
-                    oCodecContext = ffmpeg.avcodec_alloc_context3(encoder);
-                    oCodecContext = out_stream->codec;
-
-                    oCodecContext->height = iCodecContext->height;
-                    oCodecContext->width = iCodecContext->width;
-                    oCodecContext->sample_aspect_ratio = iCodecContext->sample_aspect_ratio;
-                    oCodecContext->pix_fmt = encoder->pix_fmts[0];
-                    oCodecContext->time_base = iCodecContext->time_base;
-                    oCodecContext->framerate = ffmpeg.av_inv_q(iCodecContext->framerate);
-
-                    if ((_oFormatContext->oformat->flags & ffmpeg.AVFMT_GLOBALHEADER) != 0)
-                    {
-                        oCodecContext->flags |= ffmpeg.AV_CODEC_FLAG_GLOBAL_HEADER;
-                    }
-
-                    //open codecd
-                    ret = ffmpeg.avcodec_open2(oCodecContext, encoder, null).ThrowExceptionIfError();
-
-                    ret = ffmpeg.avcodec_parameters_from_context(out_stream->codecpar, oCodecContext);
-                    out_stream->time_base = oCodecContext->time_base;
-                }
+                oCodecContext->flags |= ffmpeg.AV_CODEC_FLAG_GLOBAL_HEADER;
             }
-            
+
+            //open codecd
+            ret = ffmpeg.avcodec_open2(oCodecContext, encoder, null).ThrowExceptionIfError();
+
+            ret = ffmpeg.avcodec_parameters_from_context(out_stream->codecpar, oCodecContext);
+            out_stream->time_base = oCodecContext->time_base;
+
             //Show some Information
             ffmpeg.av_dump_format(_oFormatContext, 0, fileName, 1);
 
@@ -69,10 +63,10 @@ namespace FFmpeg_usbCam.FFmpeg
             oFormatContext = _oFormatContext;
         }
 
-        public override void Dispose()
+        public void Dispose()
         {
             var _oFormatContext = oFormatContext;
-            
+
             //Write file trailer
             ffmpeg.av_write_trailer(_oFormatContext);
 
