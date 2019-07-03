@@ -9,10 +9,23 @@
     <Grid>
         <Image x:Name="image" 
                Margin="10,65,10,10"/>
-        <Button x:Name="Play_Button" Content="재생" HorizontalAlignment="Right" Margin="0,10,10,0" 
-                VerticalAlignment="Top" Width="75" Height="50" Click="Play_Button_Click"/>
-        <ToggleButton x:Name="Record_Button"
+        <Button 
+            x:Name="Play_Button" Content="재생" HorizontalAlignment="Right" Margin="0,10,10,0" 
+            VerticalAlignment="Top" Width="75" Height="50" 
+            Click="Play_Button_Click"/>
+        <ToggleButton 
+            x:Name="Record_Button" IsEnabled="False"
             Content="녹화" HorizontalAlignment="Left" Margin="10,10,0,0" 
-            VerticalAlignment="Top" Height="50" Width="76" Checked="Record_Button_Checked" Unchecked="Record_Button_Unchecked"/>
+            VerticalAlignment="Top" Height="50" Width="76" 
+            Checked="Record_Button_Checked" Unchecked="Record_Button_Unchecked"/>
+        <ComboBox x:Name="VType_ComboBox" HorizontalAlignment="Right" Margin="0,29,460,0" VerticalAlignment="Top" Width="106" Height="25" SelectedIndex="0">
+            <ComboBoxItem Content="RTSP / RTP"/>
+            <ComboBoxItem Content="Web Cam"/>
+        </ComboBox>
+        <TextBox 
+            x:Name="URL_TextBox"
+            HorizontalAlignment="Right" Height="40" Margin="0,20,90,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="320"
+            Text="rtsp://192.168.0.6:8554/test" VerticalContentAlignment="Center"/>
+        <Label Content="URL" HorizontalAlignment="Left" Margin="845,29,0,0" VerticalAlignment="Top" Height="25"/>
     </Grid>
 </Window>

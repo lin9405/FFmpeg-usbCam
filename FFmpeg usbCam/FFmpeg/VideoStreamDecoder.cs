@@ -8,7 +8,7 @@ namespace FFmpeg_usbCam.FFmpeg
 {
     public unsafe class VideoStreamDecoder : GenericVideoStreamManager
     {
-        public VideoStreamDecoder(string url)
+        public VideoStreamDecoder(string url, int type)
         {
             ffmpeg.avdevice_register_all();
 
@@ -16,12 +16,17 @@ namespace FFmpeg_usbCam.FFmpeg
 
             var _iFormatContext = iFormatContext;
 
-            //webcam
-            //AVInputFormat* iformat = ffmpeg.av_find_input_format("dshow");
-            //ffmpeg.avformat_open_input(&_iFormatContext, url, iformat, null).ThrowExceptionIfError();
-
-            //rtsp video streaming
-            ffmpeg.avformat_open_input(&_iFormatContext, url, null, null).ThrowExceptionIfError();
+            if(type == (int)VTYPE.RTSP_RTP)
+            {
+                //rtsp video streaming
+                ffmpeg.avformat_open_input(&_iFormatContext, url, null, null).ThrowExceptionIfError();
+            }
+            else if(type == (int)VTYPE.CAM)
+            {
+                //webcam
+                AVInputFormat* iformat = ffmpeg.av_find_input_format("dshow");
+                ffmpeg.avformat_open_input(&_iFormatContext, url, iformat, null).ThrowExceptionIfError();
+            }
 
             ffmpeg.avformat_find_stream_info(_iFormatContext, null).ThrowExceptionIfError();
 

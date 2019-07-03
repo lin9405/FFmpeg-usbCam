@@ -14,6 +14,12 @@ using System.Collections.Concurrent;
 
 namespace FFmpeg_usbCam
 {
+    public enum VTYPE
+    {
+        RTSP_RTP = 0,
+        CAM
+    }
+
     /// <summary>
     /// MainWindow.xaml에 대한 상호 작용 논리
     /// </summary>
@@ -61,8 +67,14 @@ namespace FFmpeg_usbCam
             encodingThread = new Thread(encodingThreadStart);
         }
 
+        string url = "";
+        int type = 0;
+
         private void Play_Button_Click(object sender, RoutedEventArgs e)
         {
+            url = URL_TextBox.Text;
+            type = VType_ComboBox.SelectedIndex;
+
             //thread 시작 
             if (decodingThread.ThreadState == ThreadState.Unstarted)
             {
@@ -78,9 +90,9 @@ namespace FFmpeg_usbCam
             //string url = "video=AVerMedia GC550 Video Capture";
 
             //sample rtsp source
-            string url = "rtsp://184.72.239.149/vod/mp4:BigBuckBunny_115k.mov";
+            //string url = "rtsp://184.72.239.149/vod/mp4:BigBuckBunny_115k.mov";
 
-            using (var vsd = new VideoStreamDecoder(url))
+            using (var vsd = new VideoStreamDecoder(url, type))
             {
                 var info = vsd.GetContextInfo();
                 info.ToList().ForEach(x => Console.WriteLine($"{x.Key} = {x.Value}"));
@@ -108,6 +120,7 @@ namespace FFmpeg_usbCam
                     }
                 }
             }
+
         }
 
         private unsafe void EncodeImagesToH264()
