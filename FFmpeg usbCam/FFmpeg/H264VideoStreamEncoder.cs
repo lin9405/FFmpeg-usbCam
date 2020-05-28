@@ -10,32 +10,31 @@ namespace FFmpeg_usbCam.FFmpeg
         int enc_stream_index;
         AVFormatContext* oFormatContext;
         AVCodecContext* oCodecContext;
-        
-        public void OpenOutputURL(string fileName, EncodingInfo enCodecInfo)
+        AVCodec* oCodec;
+
+        public void OpenOutputURL(string fileName, VideoInfo videoInfo)
         {
             AVStream* out_stream;
-            AVCodec* encoder;
-
-            int ret;
 
             //output file
             var _oFormatContext = oFormatContext;
 
             ffmpeg.avformat_alloc_output_context2(&_oFormatContext, null, null, fileName);
 
-            encoder = ffmpeg.avcodec_find_encoder(AVCodecID.AV_CODEC_ID_H264);
+            oCodec = ffmpeg.avcodec_find_encoder(AVCodecID.AV_CODEC_ID_H264);
 
-            out_stream = ffmpeg.avformat_new_stream(_oFormatContext, encoder);
+            out_stream = ffmpeg.avformat_new_stream(_oFormatContext, oCodec);
 
-            oCodecContext = ffmpeg.avcodec_alloc_context3(encoder);
-            oCodecContext = out_stream->codec;
+            oCodecContext = ffmpeg.avcodec_alloc_context3(oCodec);
 
-            oCodecContext->height = enCodecInfo.Height;
-            oCodecContext->width = enCodecInfo.Width;
-            oCodecContext->sample_aspect_ratio = enCodecInfo.Sample_aspect_ratio;
-            oCodecContext->pix_fmt = encoder->pix_fmts[0];
-            oCodecContext->time_base = enCodecInfo.Timebase;
-            oCodecContext->framerate = ffmpeg.av_inv_q(enCodecInfo.Framerate);
+            oCodecContext->height = videoInfo.SourceFrameSize.Height;
+            oCodecContext->width = videoInfo.SourceFrameSize.Width;
+            oCodecContext->sample_aspect_ratio = videoInfo.Sample_aspect_ratio;
+            oCodecContext->pix_fmt = AVPixelFormat.AV_PIX_FMT_YUV420P;
+            oCodecContext->time_base = new AVRational { num = 1, den = 15 };
+            oCodecContext->framerate = ffmpeg.av_inv_q(videoInfo.Framerate);
+
+            //ffmpeg.av_opt_set(oCodecContext->priv_data, "profile", "baseline", 0);
 
             if ((_oFormatContext->oformat->flags & ffmpeg.AVFMT_GLOBALHEADER) != 0)
             {
@@ -43,9 +42,9 @@ namespace FFmpeg_usbCam.FFmpeg
             }
 
             //open codecd
-            ret = ffmpeg.avcodec_open2(oCodecContext, encoder, null).ThrowExceptionIfError();
+            ffmpeg.avcodec_open2(oCodecContext, oCodec, null).ThrowExceptionIfError();
 
-            ret = ffmpeg.avcodec_parameters_from_context(out_stream->codecpar, oCodecContext);
+            ffmpeg.avcodec_parameters_from_context(out_stream->codecpar, oCodecContext);
             out_stream->time_base = oCodecContext->time_base;
 
             //Show some Information
@@ -57,8 +56,7 @@ namespace FFmpeg_usbCam.FFmpeg
             }
 
             //Write File Header
-            int error = ffmpeg.avformat_write_header(_oFormatContext, null);
-            error.ThrowExceptionIfError();
+            ffmpeg.avformat_write_header(_oFormatContext, null).ThrowExceptionIfError();
 
             oFormatContext = _oFormatContext;
         }
@@ -69,51 +67,47 @@ namespace FFmpeg_usbCam.FFmpeg
 
             //Write file trailer
             ffmpeg.av_write_trailer(_oFormatContext);
-
             ffmpeg.avformat_close_input(&_oFormatContext);
+
+            //메모리 해제
+            ffmpeg.avcodec_close(oCodecContext);
+            ffmpeg.av_free(oCodecContext);
+            ffmpeg.av_free(oCodec);
         }
 
         public void TryEncodeNextPacket(AVFrame uncompressed_frame)
         {
-            int ret;
-            AVPacket* encoded_packet;
-
-            encoded_packet = ffmpeg.av_packet_alloc();
+            var encoded_packet = ffmpeg.av_packet_alloc();
             ffmpeg.av_init_packet(encoded_packet);
 
-            //Supply a raw video frame to the output condec context
-            ret = ffmpeg.avcodec_send_frame(oCodecContext, &uncompressed_frame);
-            ret.ThrowExceptionIfError();
-
-            while (true)
+            try
             {
-                //read encodeded packet from output codec context
-                ret = ffmpeg.avcodec_receive_packet(oCodecContext, encoded_packet);
+                int error;
 
-                /* if no more frames for output - returns AVERROR(EAGAIN)
-                * if flushed and no more frames for output - returns AVERROR_EOF
-                * rewrite retcode to 0 to show it as normal procedure completion
-                */
-                if (ret == ffmpeg.AVERROR(ffmpeg.EAGAIN) || ret == ffmpeg.AVERROR(ffmpeg.AVERROR_EOF))
+                do
                 {
-                    break;
-                }
-                else if (ret < 0)
-                {
-                    Console.WriteLine("Error during encoding \n");
-                    break;
-                }
+                    //Supply a raw video frame to the output condec context
+                    ffmpeg.avcodec_send_frame(oCodecContext, &uncompressed_frame).ThrowExceptionIfError();
 
-                enc_stream_index = encoded_packet->stream_index;
+                    //read encodeded packet from output codec context
+                    error = ffmpeg.avcodec_receive_packet(oCodecContext, encoded_packet);
 
-                //set packet pts & dts for timestamp
-                if (encoded_packet->pts != ffmpeg.AV_NOPTS_VALUE)
-                    encoded_packet->pts = (long)(ffmpeg.av_rescale_q(encoded_packet->pts, oCodecContext->time_base, oFormatContext->streams[enc_stream_index]->time_base));
-                if (encoded_packet->dts != ffmpeg.AV_NOPTS_VALUE)
-                    encoded_packet->dts = ffmpeg.av_rescale_q(encoded_packet->dts, oCodecContext->time_base, oFormatContext->streams[enc_stream_index]->time_base);
+                    enc_stream_index = encoded_packet->stream_index;
 
-                //write frame in video file
-                ffmpeg.av_write_frame(oFormatContext, encoded_packet);
+                    //set packet pts & dts for timestamp
+                    if (encoded_packet->pts != ffmpeg.AV_NOPTS_VALUE)
+                        encoded_packet->pts = (long)(ffmpeg.av_rescale_q(encoded_packet->pts, oCodecContext->time_base, oFormatContext->streams[enc_stream_index]->time_base));
+                    if (encoded_packet->dts != ffmpeg.AV_NOPTS_VALUE)
+                        encoded_packet->dts = ffmpeg.av_rescale_q(encoded_packet->dts, oCodecContext->time_base, oFormatContext->streams[enc_stream_index]->time_base);
+
+                    //write frame in video file
+                    ffmpeg.av_write_frame(oFormatContext, encoded_packet);
+
+                } while (error == ffmpeg.AVERROR(ffmpeg.EAGAIN) || error == ffmpeg.AVERROR(ffmpeg.AVERROR_EOF));
+            }
+            finally
+            {
+                ffmpeg.av_packet_unref(encoded_packet);
             }
         }
 

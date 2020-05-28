@@ -7,7 +7,7 @@ namespace FFmpeg_usbCam.FFmpeg
     public class FFmpegBinariesHelper
     {
         private const string LD_LIBRARY_PATH = "LD_LIBRARY_PATH";
-        internal static void RegisterFFmpegBinaries()
+        public static void RegisterFFmpegBinaries()
         {
             switch (Environment.OSVersion.Platform)
             {
@@ -15,10 +15,9 @@ namespace FFmpeg_usbCam.FFmpeg
                 case PlatformID.Win32S:
                 case PlatformID.Win32Windows:
                     var current = Environment.CurrentDirectory;
-                    var probe = Path.Combine("FFmpeg", "Plugins");
+                    var probe = "FFmpeg\\Plugins";
                     while (current != null)
                     {
-                        //var ffmpegDirectory = Path.Combine(current, probe);
                         var ffmpegDirectory = Path.Combine(current, probe);
                         if (Directory.Exists(ffmpegDirectory))
                         {

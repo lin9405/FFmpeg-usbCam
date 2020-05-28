@@ -17,7 +17,8 @@ namespace FFmpeg_usbCam.FFmpeg
 
         public static int ThrowExceptionIfError(this int error)
         {
-            if (error < 0) throw new ApplicationException(Av_strerror(error));
+            if (error < 0)
+                throw new ApplicationException(Av_strerror(error));
             return error;
         }
     }
