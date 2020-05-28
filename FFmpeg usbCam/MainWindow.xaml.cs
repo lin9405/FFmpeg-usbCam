@@ -25,15 +25,16 @@ namespace FFmpeg_usbCam
         {
             InitializeComponent();
 
-            string url = URL_TextBox.Text;
-            int type = VType_ComboBox.SelectedIndex;
-
             easyFFmpeg = new EasyFFmpegManager();
-            easyFFmpeg.InitializeFFmpeg(url, (VIDEO_INPUT_TYPE)type);
         }
 
         private void Play_Button_Click(object sender, RoutedEventArgs e)
         {
+            string url = URL_TextBox.Text;
+            int type = VType_ComboBox.SelectedIndex;
+
+            easyFFmpeg.InitializeFFmpeg(url, (VIDEO_INPUT_TYPE)type);
+
             easyFFmpeg.PlayVideo();
             easyFFmpeg.VideoFrameReceived += VideoFrameReceived;
         }
@@ -59,6 +60,12 @@ namespace FFmpeg_usbCam
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            easyFFmpeg.DisposeFFmpeg();
+        }
+
+        private void Stop_Button_Click(object sender, RoutedEventArgs e)
+        {
+            Record_Button.IsChecked = false;
             easyFFmpeg.DisposeFFmpeg();
         }
     }

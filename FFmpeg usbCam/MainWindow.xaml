@@ -17,7 +17,7 @@
             x:Name="Play_Button"
             Content="재생"
             HorizontalAlignment="Right"
-            Margin="0,10,10,0"
+            Margin="0,10,81,0"
             VerticalAlignment="Top"
             Width="75"
             Height="50"
@@ -35,7 +35,7 @@
         <ComboBox
             x:Name="VType_ComboBox"
             HorizontalAlignment="Right"
-            Margin="0,29,460,0"
+            Margin="0,29,531,0"
             VerticalAlignment="Top"
             Width="106"
             Height="25"
@@ -49,7 +49,7 @@
             x:Name="URL_TextBox"
             HorizontalAlignment="Right"
             Height="40"
-            Margin="0,20,90,0"
+            Margin="0,20,161,0"
             TextWrapping="Wrap"
             VerticalAlignment="Top"
             Width="320"
@@ -58,8 +58,17 @@
         <Label
             Content="URL"
             HorizontalAlignment="Left"
-            Margin="845,29,0,0"
+            Margin="774,29,0,0"
             VerticalAlignment="Top"
             Height="25" />
+        <Button
+            x:Name="Stop_Button"
+            Content="중지"
+            HorizontalAlignment="Right"
+            Margin="0,10,10,0"
+            VerticalAlignment="Top"
+            Width="66"
+            Height="50"
+            Click="Stop_Button_Click" />
     </Grid>
 </Window>
