@@ -37,6 +37,11 @@ namespace FFmpeg_usbCam.FFmpeg
         string url;
         VIDEO_INPUT_TYPE videoInputType;
 
+        public void setAudio()
+        {
+            AVFrame audioFrame;
+        }
+
         public EasyFFmpegManager()
         {
             hwDeviceType = AVHWDeviceType.AV_HWDEVICE_TYPE_NONE;    //temp
@@ -51,7 +56,7 @@ namespace FFmpeg_usbCam.FFmpeg
         public void InitializeFFmpeg(string _url, VIDEO_INPUT_TYPE _inputType)
         {
             url = _url;
-            videoInputType = _inputType;
+            videoInputType = VIDEO_INPUT_TYPE.CAM_DEVICE;
 
             isInit = true;
         }
@@ -168,15 +173,12 @@ namespace FFmpeg_usbCam.FFmpeg
                 using (var decoder = new VideoStreamDecoder(url, videoInputType))
                 {
                     videoInfo = decoder.GetVideoInfo();
-
                     var info = decoder.GetContextInfo();
                     info.ToList().ForEach(x => Console.WriteLine($"{x.Key} = {x.Value}"));
-
                     var sourceSize = decoder.FrameSize;
                     var sourcePixelFormat = hwDeviceType == AVHWDeviceType.AV_HWDEVICE_TYPE_NONE ? decoder.PixelFormat : GetHWPixelFormat(hwDeviceType);
                     var destinationSize = sourceSize;
                     var destinationPixelFormat = AVPixelFormat.AV_PIX_FMT_BGR24;
-
                     using (var vfc = new VideoFrameConverter(sourceSize, sourcePixelFormat, destinationSize, destinationPixelFormat))
                     {
                         while (decoder.TryDecodeNextFrame(out var frame) && isDecodingEvent.WaitOne())
@@ -184,7 +186,6 @@ namespace FFmpeg_usbCam.FFmpeg
                             var convertedFrame = vfc.Convert(frame);
 
                             Bitmap bitmap = new Bitmap(convertedFrame.width, convertedFrame.height, convertedFrame.linesize[0], System.Drawing.Imaging.PixelFormat.Format24bppRgb, (IntPtr)convertedFrame.data[0]);
-
                             if (isEncodingThreadRunning)
                             {
                                 decodedFrameQueue.Enqueue(convertedFrame);
@@ -235,16 +236,19 @@ namespace FFmpeg_usbCam.FFmpeg
                 {
                     if (decodedFrameQueue.TryDequeue(out queueFrame))
                     {
+                        Console.WriteLine("c");
                         var sourcePixelFormat = AVPixelFormat.AV_PIX_FMT_BGR24;
                         var destinationPixelFormat = AVPixelFormat.AV_PIX_FMT_YUV420P; //for h.264
-
+                        Console.WriteLine("d");
                         using (var vfc = new VideoFrameConverter(videoInfo.SourceFrameSize, sourcePixelFormat, videoInfo.DestinationFrameSize, destinationPixelFormat))
                         {
+                            Console.WriteLine("f");
+
                             var convertedFrame = vfc.Convert(queueFrame);
-                            convertedFrame.pts = frameNumber * 2;       //to do
+                            convertedFrame.pts = frameNumber*2;       //to do
                             h264Encoder.TryEncodeNextPacket(convertedFrame);
                         }
-
+                        Console.WriteLine(frameNumber);
                         frameNumber++;
                     }
                 }

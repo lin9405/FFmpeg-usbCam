@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace FFmpeg_usbCam.FFmpeg
 {
@@ -15,6 +16,7 @@ namespace FFmpeg_usbCam.FFmpeg
     public unsafe class VideoStreamDecoder : IDisposable
     {
         private readonly AVCodecContext* iCodecContext;
+        private readonly AVCodecContext* audioCodeContext;
         private readonly AVFormatContext* iFormatContext;
 
         private readonly AVFrame* decodedFrame;
@@ -22,19 +24,19 @@ namespace FFmpeg_usbCam.FFmpeg
         private readonly AVPacket* rawPacket;
 
         private readonly int dec_stream_index;
+        private readonly int audio_stream_index;
 
         public string CodecName { get; }
         public Size FrameSize { get; }
         public AVPixelFormat PixelFormat { get; }
 
 
-        public VideoStreamDecoder(string url, VIDEO_INPUT_TYPE inputType, AVHWDeviceType HWDeviceType = AVHWDeviceType.AV_HWDEVICE_TYPE_NONE)
+        public VideoStreamDecoder(string url, VIDEO_INPUT_TYPE inputType= VIDEO_INPUT_TYPE.CAM_DEVICE, AVHWDeviceType HWDeviceType = AVHWDeviceType.AV_HWDEVICE_TYPE_NONE)
         {
             ffmpeg.avdevice_register_all();
 
             iFormatContext = ffmpeg.avformat_alloc_context();
             receivedFrame = ffmpeg.av_frame_alloc();
-
             var _iFormatContext = iFormatContext;
 
             AVDictionary* avDict;
@@ -43,8 +45,10 @@ namespace FFmpeg_usbCam.FFmpeg
             switch (inputType)
             {
                 case VIDEO_INPUT_TYPE.CAM_DEVICE:
+                    Console.WriteLine(10);
                     AVInputFormat* iformat = ffmpeg.av_find_input_format("dshow");
-                    ffmpeg.avformat_open_input(&_iFormatContext, url, iformat, null).ThrowExceptionIfError();
+                    Console.WriteLine(9);
+                    ffmpeg.avformat_open_input(&_iFormatContext, url, iformat, null);
                     break;
                 case VIDEO_INPUT_TYPE.RTP_RTSP:
                     ffmpeg.avformat_open_input(&_iFormatContext, url, null, &avDict).ThrowExceptionIfError();
@@ -53,12 +57,14 @@ namespace FFmpeg_usbCam.FFmpeg
                     break;
             }
 
-            ffmpeg.avformat_find_stream_info(iFormatContext, null).ThrowExceptionIfError();
 
+            ffmpeg.avformat_find_stream_info(iFormatContext, null).ThrowExceptionIfError();
+            
             AVCodec* codec = null;
 
             dec_stream_index = ffmpeg.av_find_best_stream(iFormatContext, AVMediaType.AVMEDIA_TYPE_VIDEO, -1, -1, &codec, 0).ThrowExceptionIfError();
-
+            audio_stream_index =
+                ffmpeg.av_find_best_stream(iFormatContext, AVMediaType.AVMEDIA_TYPE_AUDIO, -1, -1, null, 0);
             iCodecContext = ffmpeg.avcodec_alloc_context3(codec);
 
 
@@ -83,7 +89,7 @@ namespace FFmpeg_usbCam.FFmpeg
             ffmpeg.av_frame_unref(decodedFrame);
             ffmpeg.av_frame_unref(receivedFrame);
             int error;
-
+            
             do
             {
                 try
@@ -96,7 +102,6 @@ namespace FFmpeg_usbCam.FFmpeg
                             frame = *decodedFrame;
                             return false;
                         }
-
                         error.ThrowExceptionIfError();
                     } while (rawPacket->stream_index != dec_stream_index);
 
@@ -104,7 +109,9 @@ namespace FFmpeg_usbCam.FFmpeg
 
                     /* Send the video frame stored in the temporary packet to the decoder.
                      * The input video stream decoder is used to do this. */
-                    ffmpeg.avcodec_send_packet(iCodecContext, rawPacket).ThrowExceptionIfError();
+                    ffmpeg.avcodec_send_packet(iCodecContext, rawPacket);
+                    //                    ffmpeg.avcodec_send_packet(iCodecContext, rawPacket).ThrowExceptionIfError();
+
                 }
                 finally
                 {
@@ -113,7 +120,6 @@ namespace FFmpeg_usbCam.FFmpeg
 
                 //read decoded frame from input codec context
                 error = ffmpeg.avcodec_receive_frame(iCodecContext, decodedFrame);
-
             } while (error == ffmpeg.AVERROR(ffmpeg.EAGAIN));
 
             error.ThrowExceptionIfError();
@@ -127,7 +133,6 @@ namespace FFmpeg_usbCam.FFmpeg
             {
                 frame = *decodedFrame;
             }
-
             return true;
         }
 
@@ -156,7 +161,7 @@ namespace FFmpeg_usbCam.FFmpeg
             videoInfo.Sample_aspect_ratio = iCodecContext->sample_aspect_ratio;
             videoInfo.Timebase = iCodecContext->time_base;
             videoInfo.Framerate = iCodecContext->framerate;
-
+            
             return videoInfo;
         }
 

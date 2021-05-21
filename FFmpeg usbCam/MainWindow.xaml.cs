@@ -2,6 +2,7 @@
 using System.Windows;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using FFmpeg.AutoGen;
 using FFmpeg_usbCam.FFmpeg;
 
 namespace FFmpeg_usbCam
@@ -27,10 +28,14 @@ namespace FFmpeg_usbCam
 
             easyFFmpeg = new EasyFFmpegManager();
         }
+        private void Play_Button_Click1(object sender, RoutedEventArgs e)
+        {
+            easyFFmpeg.setAudio();
+        }
 
         private void Play_Button_Click(object sender, RoutedEventArgs e)
         {
-            string url = URL_TextBox.Text;
+            string url = "video=USB3. 0 capture";
             int type = VType_ComboBox.SelectedIndex;
 
             easyFFmpeg.InitializeFFmpeg(url, (VIDEO_INPUT_TYPE)type);
@@ -49,7 +54,9 @@ namespace FFmpeg_usbCam
 
         private void Record_Button_Checked(object sender, RoutedEventArgs e)
         {
-            string fileName = DateTime.Now.ToString("yyMMdd_hh.mm.ss") + ".mp4";
+            string fileName =DateTime.Now.ToString("yyMMdd_hh.mm.ss") + ".mp4";
+            fileName = @"C:\Users\admin\Desktop\out12rwerwe333.mp4";
+            Console.WriteLine(fileName);
             easyFFmpeg.RecordVideo(fileName);
         }
 

@@ -33,7 +33,6 @@ namespace FFmpeg_usbCam.FFmpeg
             oCodecContext->pix_fmt = AVPixelFormat.AV_PIX_FMT_YUV420P;
             oCodecContext->time_base = new AVRational { num = 1, den = 15 };
             oCodecContext->framerate = ffmpeg.av_inv_q(videoInfo.Framerate);
-
             //ffmpeg.av_opt_set(oCodecContext->priv_data, "profile", "baseline", 0);
 
             if ((_oFormatContext->oformat->flags & ffmpeg.AVFMT_GLOBALHEADER) != 0)
@@ -60,6 +59,11 @@ namespace FFmpeg_usbCam.FFmpeg
 
             oFormatContext = _oFormatContext;
         }
+
+
+
+
+
 
         public void Dispose()
         {
