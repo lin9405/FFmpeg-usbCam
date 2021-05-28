@@ -68,7 +68,9 @@ namespace FFmpeg_usbCam.FFmpeg
                 data = data,
                 linesize = linesize,
                 width = _destinationSize.Width,
-                height = _destinationSize.Height
+                height = _destinationSize.Height,
+                pkt_dts = sourceFrame.pkt_dts,
+                pts = sourceFrame.pts
             };
         }
     }

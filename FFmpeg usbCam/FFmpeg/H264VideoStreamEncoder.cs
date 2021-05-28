@@ -31,7 +31,7 @@ namespace FFmpeg_usbCam.FFmpeg
             oCodecContext->width = videoInfo.SourceFrameSize.Width;
             oCodecContext->sample_aspect_ratio = videoInfo.Sample_aspect_ratio;
             oCodecContext->pix_fmt = AVPixelFormat.AV_PIX_FMT_YUV420P;
-            oCodecContext->time_base = new AVRational { num = 1, den = 15 };
+            oCodecContext->time_base = new AVRational { num = 1, den = 30 };
             oCodecContext->framerate = ffmpeg.av_inv_q(videoInfo.Framerate);
             //ffmpeg.av_opt_set(oCodecContext->priv_data, "profile", "baseline", 0);
 
@@ -55,14 +55,10 @@ namespace FFmpeg_usbCam.FFmpeg
             }
 
             //Write File Header
-            ffmpeg.avformat_write_header(_oFormatContext, null).ThrowExceptionIfError();
 
+            ffmpeg.avformat_write_header(_oFormatContext, null).ThrowExceptionIfError();
             oFormatContext = _oFormatContext;
         }
-
-
-
-
 
 
         public void Dispose()
@@ -87,7 +83,7 @@ namespace FFmpeg_usbCam.FFmpeg
             try
             {
                 int error;
-
+                int index = 0;
                 do
                 {
                     //Supply a raw video frame to the output condec context
@@ -99,14 +95,13 @@ namespace FFmpeg_usbCam.FFmpeg
                     enc_stream_index = encoded_packet->stream_index;
 
                     //set packet pts & dts for timestamp
-                    if (encoded_packet->pts != ffmpeg.AV_NOPTS_VALUE)
                         encoded_packet->pts = (long)(ffmpeg.av_rescale_q(encoded_packet->pts, oCodecContext->time_base, oFormatContext->streams[enc_stream_index]->time_base));
-                    if (encoded_packet->dts != ffmpeg.AV_NOPTS_VALUE)
                         encoded_packet->dts = ffmpeg.av_rescale_q(encoded_packet->dts, oCodecContext->time_base, oFormatContext->streams[enc_stream_index]->time_base);
+                    Console.WriteLine("==========");
+                        Console.WriteLine(encoded_packet->pts + "/" + encoded_packet->dts);
 
                     //write frame in video file
                     ffmpeg.av_write_frame(oFormatContext, encoded_packet);
-
                 } while (error == ffmpeg.AVERROR(ffmpeg.EAGAIN) || error == ffmpeg.AVERROR(ffmpeg.AVERROR_EOF));
             }
             finally

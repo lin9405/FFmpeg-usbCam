@@ -57,7 +57,6 @@ namespace FFmpeg_usbCam.FFmpeg
         {
             url = _url;
             videoInputType = VIDEO_INPUT_TYPE.CAM_DEVICE;
-
             isInit = true;
         }
 
@@ -184,10 +183,13 @@ namespace FFmpeg_usbCam.FFmpeg
                         while (decoder.TryDecodeNextFrame(out var frame) && isDecodingEvent.WaitOne())
                         {
                             var convertedFrame = vfc.Convert(frame);
-
+                    
                             Bitmap bitmap = new Bitmap(convertedFrame.width, convertedFrame.height, convertedFrame.linesize[0], System.Drawing.Imaging.PixelFormat.Format24bppRgb, (IntPtr)convertedFrame.data[0]);
                             if (isEncodingThreadRunning)
                             {
+                                Console.WriteLine("*****");
+                                Console.WriteLine(convertedFrame.pkt_dts);
+                                Console.WriteLine(convertedFrame.pts);
                                 decodedFrameQueue.Enqueue(convertedFrame);
                             }
 
@@ -236,16 +238,17 @@ namespace FFmpeg_usbCam.FFmpeg
                 {
                     if (decodedFrameQueue.TryDequeue(out queueFrame))
                     {
-                        Console.WriteLine("c");
+                        Console.WriteLine(queueFrame.pts+"!!!!!!!!!!!!@###############");
+                        Console.WriteLine(queueFrame.pkt_dts);
                         var sourcePixelFormat = AVPixelFormat.AV_PIX_FMT_BGR24;
                         var destinationPixelFormat = AVPixelFormat.AV_PIX_FMT_YUV420P; //for h.264
-                        Console.WriteLine("d");
                         using (var vfc = new VideoFrameConverter(videoInfo.SourceFrameSize, sourcePixelFormat, videoInfo.DestinationFrameSize, destinationPixelFormat))
                         {
-                            Console.WriteLine("f");
-
+                            
                             var convertedFrame = vfc.Convert(queueFrame);
-                            convertedFrame.pts = frameNumber*2;       //to do
+                            Console.WriteLine(convertedFrame.pts/90000 + "&&&&&");
+                            //convertedFrame.pts = frameNumber*2; //to do
+
                             h264Encoder.TryEncodeNextPacket(convertedFrame);
                         }
                         Console.WriteLine(frameNumber);

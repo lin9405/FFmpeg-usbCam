@@ -13,5 +13,7 @@ namespace FFmpeg_usbCam.FFmpeg
         public AVRational Sample_aspect_ratio;
         public AVRational Timebase;
         public AVRational Framerate;
+        public string audioCodec;
+
     }
 }

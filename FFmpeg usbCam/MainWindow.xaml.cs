@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -25,8 +26,13 @@ namespace FFmpeg_usbCam
         public MainWindow()
         {
             InitializeComponent();
+            //var test = new test();
+            //Task.Factory.StartNew(() =>
+            //{
+            //    test.testSet();
 
-            easyFFmpeg = new EasyFFmpegManager();
+            //});
+              easyFFmpeg = new EasyFFmpegManager();
         }
         private void Play_Button_Click1(object sender, RoutedEventArgs e)
         {
@@ -35,7 +41,7 @@ namespace FFmpeg_usbCam
 
         private void Play_Button_Click(object sender, RoutedEventArgs e)
         {
-            string url = "video=USB3. 0 capture";
+            string url = "video=USB3. 0 capture:audio=디지털 오디오 인터페이스(5- USB3. 0 capture)";
             int type = VType_ComboBox.SelectedIndex;
 
             easyFFmpeg.InitializeFFmpeg(url, (VIDEO_INPUT_TYPE)type);
@@ -55,8 +61,7 @@ namespace FFmpeg_usbCam
         private void Record_Button_Checked(object sender, RoutedEventArgs e)
         {
             string fileName =DateTime.Now.ToString("yyMMdd_hh.mm.ss") + ".mp4";
-            fileName = @"C:\Users\admin\Desktop\out12rwerwe333.mp4";
-            Console.WriteLine(fileName);
+            fileName = @"C:\Users\admin\Desktop\1.avi";
             easyFFmpeg.RecordVideo(fileName);
         }
 
