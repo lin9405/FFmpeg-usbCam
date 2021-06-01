@@ -25,18 +25,24 @@ namespace FFmpeg_usbCam
 
         public MainWindow()
         {
-            InitializeComponent();
+             InitializeComponent();
             //var test = new test();
             //Task.Factory.StartNew(() =>
             //{
             //    test.testSet();
 
-            //});
-              easyFFmpeg = new EasyFFmpegManager();
-        }
-        private void Play_Button_Click1(object sender, RoutedEventArgs e)
-        {
-            easyFFmpeg.setAudio();
+            //  //});
+           //  easyFFmpeg = new EasyFFmpegManager();
+
+            //changecontainer init = new changecontainer();
+            //init.changecontainerset();
+
+            MirroringHelper mirroringHelper = new MirroringHelper();
+            mirroringHelper.getVideoAndAudio();
+            //var audioTest = new AudioTest();
+            //audioTest.testSet();
+            //  audioTest.OpenOutputURL(@"C:\Users\admin\Desktop\audioTest.mp3");
+
         }
 
         private void Play_Button_Click(object sender, RoutedEventArgs e)
@@ -60,8 +66,8 @@ namespace FFmpeg_usbCam
 
         private void Record_Button_Checked(object sender, RoutedEventArgs e)
         {
-            string fileName =DateTime.Now.ToString("yyMMdd_hh.mm.ss") + ".mp4";
-            fileName = @"C:\Users\admin\Desktop\1.avi";
+            string fileName = DateTime.Now.ToString("yyMMdd_hh.mm.ss") + ".mp4";
+            fileName = @"C:\Users\admin\Desktop\testq.mp4";
             easyFFmpeg.RecordVideo(fileName);
         }
 

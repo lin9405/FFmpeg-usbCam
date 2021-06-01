@@ -49,11 +49,12 @@ namespace FFmpeg_usbCam.FFmpeg
         }
 
         public AVFrame Convert(AVFrame sourceFrame)
-        {
+        { 
             ffmpeg.sws_scale(_pConvertContext,
                 sourceFrame.data, sourceFrame.linesize,
                 0, sourceFrame.height,
                 _dstData, _dstLinesize);
+
 
             var data = new byte_ptrArray8();
 
@@ -70,8 +71,12 @@ namespace FFmpeg_usbCam.FFmpeg
                 width = _destinationSize.Width,
                 height = _destinationSize.Height,
                 pkt_dts = sourceFrame.pkt_dts,
-                pts = sourceFrame.pts
+                pts = sourceFrame.pts,
+                sample_rate = sourceFrame.sample_rate
             };
         }
+
+
+
     }
 }

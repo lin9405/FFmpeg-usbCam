@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.Eventing.Reader;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -98,13 +99,9 @@ namespace FFmpeg_usbCam.FFmpeg
                 Console.WriteLine("FFmpeg 초기화 필요");
                 return;
             }
-
             isDecodingEvent = new ManualResetEvent(false);
-
             ThreadPool.QueueUserWorkItem(new WaitCallback(DecodeAllFramesToImages));
-
             isDecodingEvent.Set();
-
             isDecodingThreadRunning = true;
         }
 
@@ -180,20 +177,29 @@ namespace FFmpeg_usbCam.FFmpeg
                     var destinationPixelFormat = AVPixelFormat.AV_PIX_FMT_BGR24;
                     using (var vfc = new VideoFrameConverter(sourceSize, sourcePixelFormat, destinationSize, destinationPixelFormat))
                     {
-                        while (decoder.TryDecodeNextFrame(out var frame) && isDecodingEvent.WaitOne())
+                        while (decoder.TryDecodeNextFrame(out var frame))
                         {
-                            var convertedFrame = vfc.Convert(frame);
-                    
-                            Bitmap bitmap = new Bitmap(convertedFrame.width, convertedFrame.height, convertedFrame.linesize[0], System.Drawing.Imaging.PixelFormat.Format24bppRgb, (IntPtr)convertedFrame.data[0]);
+                            var convertedFrame = frame;
+                            Console.WriteLine(convertedFrame.channels + " : frameChannels");
+                            if (frame.channels == 2)
+                            {
+                                Console.WriteLine(convertedFrame.nb_samples + "nb_a");
+                                Console.WriteLine(convertedFrame.pkt_size + "frame packet size");
+                            }
+                            else
+                            {
+                                Console.WriteLine(convertedFrame.pkt_size + "frame packet size original");
+                                convertedFrame = vfc.Convert(frame);
+                                Console.WriteLine(convertedFrame.pkt_size + "frame packet size");
+                                Bitmap bitmap = new Bitmap(convertedFrame.width, convertedFrame.height, convertedFrame.linesize[0], System.Drawing.Imaging.PixelFormat.Format24bppRgb, (IntPtr)convertedFrame.data[0]);
+                                BitmapToImageSource(bitmap);
+                            }
+
                             if (isEncodingThreadRunning)
                             {
-                                Console.WriteLine("*****");
-                                Console.WriteLine(convertedFrame.pkt_dts);
-                                Console.WriteLine(convertedFrame.pts);
                                 decodedFrameQueue.Enqueue(convertedFrame);
                             }
 
-                            BitmapToImageSource(bitmap);
                         }
                     }
                 }
@@ -238,21 +244,23 @@ namespace FFmpeg_usbCam.FFmpeg
                 {
                     if (decodedFrameQueue.TryDequeue(out queueFrame))
                     {
-                        Console.WriteLine(queueFrame.pts+"!!!!!!!!!!!!@###############");
-                        Console.WriteLine(queueFrame.pkt_dts);
-                        var sourcePixelFormat = AVPixelFormat.AV_PIX_FMT_BGR24;
-                        var destinationPixelFormat = AVPixelFormat.AV_PIX_FMT_YUV420P; //for h.264
-                        using (var vfc = new VideoFrameConverter(videoInfo.SourceFrameSize, sourcePixelFormat, videoInfo.DestinationFrameSize, destinationPixelFormat))
+                        if (queueFrame.channels == 2)
                         {
-                            
-                            var convertedFrame = vfc.Convert(queueFrame);
-                            Console.WriteLine(convertedFrame.pts/90000 + "&&&&&");
-                            //convertedFrame.pts = frameNumber*2; //to do
-
-                            h264Encoder.TryEncodeNextPacket(convertedFrame);
+                            Console.WriteLine(queueFrame.channels +"____");
+                            h264Encoder.TryEncodeNextPacket(queueFrame);
                         }
-                        Console.WriteLine(frameNumber);
-                        frameNumber++;
+                        else
+                        {
+                            var sourcePixelFormat = AVPixelFormat.AV_PIX_FMT_BGR24;
+                            var destinationPixelFormat = AVPixelFormat.AV_PIX_FMT_YUV420P; //for h.264
+                            using (var vfc = new VideoFrameConverter(videoInfo.SourceFrameSize, sourcePixelFormat, videoInfo.DestinationFrameSize, destinationPixelFormat))
+                            {
+                                var convertedFrame = vfc.Convert(queueFrame);
+                                h264Encoder.TryEncodeNextPacket(convertedFrame);
+                            }
+                        }
+
+
                     }
                 }
             }

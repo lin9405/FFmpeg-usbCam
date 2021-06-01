@@ -92,6 +92,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="AudioTest.cs" />
+    <Compile Include="changecontainer.cs" />
+    <Compile Include="FFmpeg\MirroringDecoder.cs" />
+    <Compile Include="FFmpeg\MirroringHelper.cs" />
     <Compile Include="test.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>

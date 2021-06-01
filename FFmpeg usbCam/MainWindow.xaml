@@ -8,7 +8,7 @@
     Title="MainWindow"
     Height="826"
     Width="1308"
-    Closing="Window_Closing">
+    >
     <Grid>
         <Image
             x:Name="image"

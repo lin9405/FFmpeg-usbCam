@@ -10,17 +10,7 @@ namespace FFmpeg_usbCam
 {
     public unsafe class test
     {
-        struct FileContext
-        {
-            AVFormatContext* _fmt_ctx;
-            int AudioIndex;
-            int VideoIndex;
-        }
-
-        private FileContext inputFileContext;
-
         public AVFormatContext* _fmt_ctx;
-        public AVFormatContext* _output_fmt_cts;
         private int AudioIndex;
         private int VideoIndex;
 
@@ -67,21 +57,6 @@ namespace FFmpeg_usbCam
                 outCodecContext->flags |=ffmpeg.AV_CODEC_FLAG_GLOBAL_HEADER;
                 
             }
-
-
-    //           if(index == inputFile.v_index)
-    //{
-    //  outputFile.v_index = out_index++;
-    //}
-    //else
-    //{
-    //  outputFile.a_index = out_index++;
-    //}
-
-
-
-
-
 
 
             return 0;
@@ -177,8 +152,7 @@ namespace FFmpeg_usbCam
 
             AVInputFormat* iformat = ffmpeg.av_find_input_format("dshow");
             string device = "video=USB3. 0 capture:audio=디지털 오디오 인터페이스(5- USB3. 0 capture)";
-            //string file = @"C:\Users\admin\Desktop\out2.avi";
-            //var a = ffmpeg.avformat_open_input(&fmt_ctx,file, null, null); //음수이면 파일 안열려..그런 장치 없어!! 
+
 
             var a = ffmpeg.avformat_open_input(&fmt_ctx, device, iformat, null); //음수이면 파일 안열려..그런 장치 없어!! 
             var b= ffmpeg.avformat_find_stream_info(fmt_ctx, null);//Stream을 찾을수 없어...
@@ -200,7 +174,6 @@ namespace FFmpeg_usbCam
 
                 for (int index = 0; index < inputFmtCtx->nb_streams; index++)
                 {
-
                     AVStream* in_stream = inputFmtCtx->streams[index];
                     AVCodecContext* in_codec_ctx = in_stream->codec;
                     in_codec_ctx = ffmpeg.avcodec_alloc_context3(inputFmtCtx->data_codec);
